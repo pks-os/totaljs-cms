@@ -55,7 +55,7 @@
 		var scripts = [];
 		var cls2 = '.' + cls;
 		var target, iframe, container, width = 0, height = 0;
-		var offsetter = '<span id="cmseditorheight"></span><scr' + 'ipt>window.parent.' + myid + '()</sc' + 'ript>';
+		var offsetter = '<span id="cmseditorheight"></span><scr' + 'ipt>var autoresize=window.parent.' + myid + ';autoresize()</sc' + 'ript>';
 		var locked = false;
 		var temporary = {};
 		var emptyimage;
@@ -101,7 +101,7 @@
 			if ((/win/i).test(navigator.platform))
 				toolbar = toolbar.replace(/\&\#8984/g, 'CTRL');
 
-			self.html(toolbar + '<ui-component name="viewbox" config="scrollbar:1;visibleY:1;scrollbarshadow:1;parent:{1};margin:{2}"><div class="{0}-bg"><div class="{0}-container" style="margin:0 auto"><iframe frameborder="0" scrolling="no" allowtransparency="true" allow="geolocation *; microphone *; camera *; midi *; encrypted-media *"></iframe></div></div></div></ui-component>'.format(cls, config.parent, config.margin + 22));
+			self.html((toolbar + (config.parent ? '<ui-component name="viewbox" config="scrollbar:1;visibleY:1;scrollbarshadow:1;parent:{1};margin:{2}">' : '') + '<div class="{0}-bg"><div class="{0}-container" style="margin:0 auto"><iframe frameborder="0" scrolling="no" allowtransparency="true" allow="geolocation *; microphone *; camera *; midi *; encrypted-media *"></iframe></div></div></div>' + (config.parent ? '</ui-component>' : '')).format(cls, config.parent, config.margin + 22));
 			iframe = self.find('iframe');
 			container = self.find(cls2 + '-container');
 
@@ -1443,13 +1443,14 @@
 						meta.hiddenmd = widget.hclass('hidden-md');
 						meta.hiddenlg = widget.hclass('hidden-lg');
 						meta.widget = instance;
+						meta.editor = self;
 
-						instance.compiled && instance.compiled.load && instance.compiled.load(meta.config, meta.element);
+						instance.compiled && instance.compiled.load && instance.compiled.load.call(self, meta.config, meta.element);
 
 						meta.save = function(config) {
 							if (instance.compiled && instance.compiled.save) {
 								try {
-									instance.compiled.save(config, meta.element);
+									instance.compiled.save.call(self, config, meta.element);
 								} catch (e) {
 									WARN('Widget "{0}".save(): {1}'.format(instance.name, e));
 								}
@@ -1463,6 +1464,7 @@
 						if (config.config) {
 							self.EXEC(config.config, meta);
 						} else {
+							SET('cmseditor.editor', self);
 							SET('cmseditor.settings.{0} @default'.format(meta.id), meta.config);
 							SET('cmseditor.form', 'cmssettingsform');
 							EXEC(true, 'cmssettingsform/refresh', meta, e);
@@ -1740,6 +1742,8 @@
 
 			if (cmseditor.form === 'cmswidgetsform')
 				SET('cmswidgetsform.items', model.widgets);
+
+			self.autoresize();
 		};
 
 		self.dom_icon = function() {
